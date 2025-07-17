@@ -63,4 +63,4 @@ Alexander Wireless/
 ---
 
 ## Author & Contact
-Created by Dylan Alexander Knox. For questions or collaboration, please contact [your email or GitHub profile]. 
+Created by Dylan Alexander Knox. For questions or collaboration, please contact dylan.knox2000@gmail.com or https://github.com/daknox. 
