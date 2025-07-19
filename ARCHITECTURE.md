@@ -12,7 +12,7 @@ This project is a full-scale, end-to-end recreation of a telecom billing anomaly
 
 **Key Goals:**
 - Automate the extraction, transformation, and consolidation of billing data from multiple Excel sheets.
-- Engineer features for robust anomaly detection and trend analysis.
+- Engineer features for anomaly detection.
 - Replicate all business logic and outputs of the original process, including audit-ready anomaly reports and comprehensive cycle tables for analytics.
 - Enable analysts and managers to quickly identify, research, and report on unusual billing activity.
 

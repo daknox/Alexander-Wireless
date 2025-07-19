@@ -1,60 +1,75 @@
 import pandas as pd
 import numpy as np
 import os
+import random
 
-# Output directories
+# Output directory
 DATA_DIR = "data"
-if not os.path.exists(DATA_DIR):
-    os.makedirs(DATA_DIR)
+SAMPLE_DATA_DIR = os.path.join(DATA_DIR, "sample_data")
+if not os.path.exists(SAMPLE_DATA_DIR):
+    os.makedirs(SAMPLE_DATA_DIR)
 
-# Parameters
-n_codes_per_type = 20
 months = [f"{i}_Months_ago" for i in range(5, 0, -1)]
 current_month = "Active Month"
+sheet_types = [
+    ("Single Event Charges", "SEC"),
+    ("Account Corrections", "ACR"),
+    ("Subscription Plans", "SUB"),
+    ("Line Add-ons", "ADD"),
+]
 
-# Helper to generate codes and descriptions
+year = 2025
+bill_cycle_number = random.choice([1, 2, 3])
+# Choose a single month for the entire file
+chosen_month = random.randint(1, 12)
+
+# Load available codes from description files for SEC and ACR
+def get_available_codes(desc_path):
+    df = pd.read_excel(desc_path)
+    return list(df['Billing_CODE'])
+
+SEC_CODES = get_available_codes(os.path.join('data', 'descriptions', 'Single_Event_Charges_Descriptions.xlsx'))
+ACR_CODES = get_available_codes(os.path.join('data', 'descriptions', 'Account_Corrections_Descriptions.xlsx'))
+
+# Helper to generate codes for SUB and ADD
 def make_codes(prefix, n):
-    codes = [f"{prefix}{str(i).zfill(3)}" for i in range(1, n+1)]
-    descs = [f"Description for {code}" for code in codes]
-    return codes, descs
+    return [f"{prefix}{str(i).zfill(3)}" for i in range(1, n+1)]
 
-# 1. Generate Code Description File (for two categories)
-for cat, prefix in zip(["Single Event Charges", "Account Corrections"], ["SEC", "ACR"]):
-    codes, descs = make_codes(prefix, n_codes_per_type)
-    df_desc = pd.DataFrame({
-        "Billing_CODE": codes,
-        "Billing Code Description": descs
-    })
-    df_desc.to_excel(os.path.join(DATA_DIR, f"{cat.replace(' ', '_')}_Descriptions.xlsx"), index=False)
-
-# 2. Generate Billing Cycle Excel File with 4 sheets
-def make_sheet(prefix, n, with_desc):
-    codes, descs = make_codes(prefix, n)
+def make_sheet(prefix, n, available_codes=None):
+    if available_codes is not None:
+        # Randomly sample from available codes (with replacement if n > len(available_codes))
+        codes = random.choices(available_codes, k=n)
+    else:
+        codes = make_codes(prefix, n)
+    base_values = np.random.uniform(1_000_000, 17_000_000, n)
     data = {
-        "Year": np.random.choice([2022, 2023], n),
-        "Month": np.random.choice(range(1, 13), n),
-        "Bill Cycle Number": np.random.choice(range(1, 4), n),
-        "Bill_TYPE": [prefix]*n,
+        "Year": [year] * n,
+        "Month": [chosen_month] * n,
+        "Bill Cycle Number": [bill_cycle_number] * n,
+        "Bill_TYPE": [prefix] * n,
         "Billing_CODE": codes,
     }
-    for m in months:
-        data[m] = np.random.gamma(100, 2, n).round(2)
-    data[current_month] = np.random.gamma(100, 2, n).round(2)
+    for i, m in enumerate(months[::-1]):
+        data[m] = (base_values + i * np.random.uniform(100_000, 500_000, n) + np.random.normal(0, 200_000, n)).clip(0, 18_000_000).round(2)
+    data[current_month] = (base_values + 5 * np.random.uniform(100_000, 500_000, n) + np.random.normal(0, 1_000_000, n)).clip(0, 18_000_000).round(2)
+    data["Billing Code Description"] = ["" for _ in range(n)]
     df = pd.DataFrame(data)
-    if with_desc:
-        df["Billing Code Description"] = descs
     return df
 
-sheets = {
-    "Single Event Charges": make_sheet("SEC", n_codes_per_type, True),
-    "Account Corrections": make_sheet("ACR", n_codes_per_type, True),
-    "Subscription Plans": make_sheet("SUB", n_codes_per_type, False),
-    "Line Add-ons": make_sheet("ADD", n_codes_per_type, False),
-}
+sheets = {}
+for sheet_name, prefix in sheet_types:
+    n_rows = random.randint(100, 200)
+    if prefix == "SEC":
+        sheets[sheet_name] = make_sheet(prefix, n_rows, available_codes=SEC_CODES)
+    elif prefix == "ACR":
+        sheets[sheet_name] = make_sheet(prefix, n_rows, available_codes=ACR_CODES)
+    else:
+        sheets[sheet_name] = make_sheet(prefix, n_rows)
 
-billing_file = os.path.join(DATA_DIR, "Sample_Billing_Cycle.xlsx")
+month_str = str(chosen_month).zfill(2)
+billing_file = os.path.join(SAMPLE_DATA_DIR, f"Sample_Billing_Cycle_{month_str}-{bill_cycle_number}-{year}.xlsx")
 with pd.ExcelWriter(billing_file, engine="openpyxl") as writer:
     for sheet, df in sheets.items():
         df.to_excel(writer, sheet_name=sheet, index=False)
 
-print(f"Sample billing cycle and description files generated in '{DATA_DIR}/'") 
+print(f"Sample billing cycle file generated in '{billing_file}'") 

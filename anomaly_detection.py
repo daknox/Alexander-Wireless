@@ -7,43 +7,35 @@ Description: End-to-end anomaly detection engine for simulated telecom billing d
 
 import pandas as pd
 import numpy as np
+import os
+import sys
+import glob
+import re
 
 # ---------------------------
-# 1. Data Simulation
+# 1. Data Loading
 # ---------------------------
-def simulate_billing_data(n_rows=500):
+def load_sample_billing_data(filepath=None):
     """
-    Simulate telecom billing data with realistic structure.
+    Load the sample billing cycle Excel file (all sheets concatenated).
+    If no filepath is provided, load the latest Sample_Billing_Cycle_*.xlsx from data/sample_data/.
+    Returns: df, mm_cc_yyyy_str (for output naming)
     """
-    np.random.seed(42)
-    years = np.random.choice([2022, 2023], n_rows)
-    months = np.random.choice(range(1, 13), n_rows)
-    bill_cycles = np.random.choice(range(1, 4), n_rows)
-    bill_types = np.random.choice([
-        "Miscellaneous Charges", "Core Plan Charges", 
-        "Feature Add-ons", "Account Reconciliations"
-    ], n_rows)
-    billing_codes = [f"C{str(i).zfill(3)}" for i in np.random.choice(range(1, 100), n_rows)]
-    descriptions = [f"Description for {code}" for code in billing_codes]
-    
-    # Simulate 5 months of history + active month
-    data = {
-        "Year": years,
-        "Month": months,
-        "Bill Cycle Number": bill_cycles,
-        "Bill_TYPE": bill_types,
-        "Billing_CODE": billing_codes,
-        "Billing Code Description": descriptions,
-    }
-    for i in range(5, 0, -1):
-        data[f"{i}_Months_ago"] = np.random.gamma(100, 2, n_rows).round(2)
-    data["Active Month"] = np.random.gamma(100, 2, n_rows).round(2)
-    
-    df = pd.DataFrame(data)
-    # Randomly introduce some NaNs for realism
-    for col in [f"{i}_Months_ago" for i in range(5, 0, -1)] + ["Active Month"]:
-        df.loc[df.sample(frac=0.05).index, col] = np.nan
-    return df
+    if filepath is None:
+        files = glob.glob(os.path.join("data", "sample_data", "Sample_Billing_Cycle_*.xlsx"))
+        if not files:
+            raise FileNotFoundError("No sample billing cycle files found in data/sample_data/.")
+        filepath = max(files, key=os.path.getctime)
+        print(f"No file specified. Using latest sample: {filepath}")
+    else:
+        print(f"Loading file: {filepath}")
+    # Extract mm-cc-yyyy from filename
+    match = re.search(r"Sample_Billing_Cycle_(\d{2}-\d-\d{4})", os.path.basename(filepath))
+    mm_cc_yyyy = match.group(1) if match else "cycle"
+    # Read all sheets and concatenate
+    all_sheets = pd.read_excel(filepath, sheet_name=None)
+    df = pd.concat(all_sheets.values(), ignore_index=True)
+    return df, mm_cc_yyyy
 
 # ---------------------------
 # 2. Data Cleaning
@@ -111,36 +103,80 @@ def flag_anomalies(df, z_thresh=2.5, pct_thresh=0.5):
     return df
 
 # ---------------------------
-# 5. Summary Statistics
+# 5. Join Code Descriptions (for anomalies only)
 # ---------------------------
-def generate_summary_statistics(df):
-    """
-    Generate summary statistics for the dataset.
-    """
-    summary = {
-        "Total Rows": len(df),
-        "Anomalies Detected": int(df["Anomaly"].sum()),
-        "Drop to 0 Cases": int(df["Drop_to_0"].sum()),
-        "New Codes": int(df["New_Code"].sum()),
-        "Mean Active_vs_Avg": df["Active_vs_Avg"].mean(),
-        "Std Active_vs_Avg": df["Active_vs_Avg"].std(),
-    }
-    return summary
+def join_code_descriptions(anomalies_df):
+    desc_dir = os.path.join("data", "descriptions")
+    sec_desc = pd.read_excel(os.path.join(desc_dir, "Single_Event_Charges_Descriptions.xlsx"))
+    acr_desc = pd.read_excel(os.path.join(desc_dir, "Account_Corrections_Descriptions.xlsx"))
+    sec_desc = sec_desc.rename(columns={"Billing_CODE": "Billing_CODE", "Billing Code Description": "SEC_Description"})
+    acr_desc = acr_desc.rename(columns={"Billing_CODE": "Billing_CODE", "Billing Code Description": "ACR_Description"})
+
+    # Merge SEC descriptions
+    anomalies_df = anomalies_df.merge(sec_desc, on="Billing_CODE", how="left")
+    # Merge ACR descriptions
+    anomalies_df = anomalies_df.merge(acr_desc, on="Billing_CODE", how="left")
+
+    # Fill Billing Code Description based on Bill_TYPE
+    anomalies_df["Billing Code Description"] = anomalies_df.apply(
+        lambda row: row["SEC_Description"] if row["Bill_TYPE"] == "SEC" else (
+            row["ACR_Description"] if row["Bill_TYPE"] == "ACR" else row["Billing Code Description"]
+        ), axis=1
+    )
+    # Drop helper columns
+    anomalies_df = anomalies_df.drop(columns=["SEC_Description", "ACR_Description"])
+    return anomalies_df
 
 # ---------------------------
-# 6. Main Execution
+# 6. Output Results
+# ---------------------------
+def output_results(df, mm_cc_yyyy):
+    import openpyxl
+    from openpyxl.utils.dataframe import dataframe_to_rows
+    from openpyxl.styles import numbers
+
+    output_dir = os.path.join("data", "Anomalies")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    anomalies = df[df["Anomaly"]].copy()
+    anomalies = join_code_descriptions(anomalies)
+
+    # Move 'Billing Code Description' to the end
+    if 'Billing Code Description' in anomalies.columns:
+        cols = [c for c in anomalies.columns if c != 'Billing Code Description'] + ['Billing Code Description']
+        anomalies = anomalies[cols]
+
+    anomaly_file_xlsx = os.path.join(output_dir, f"Anomalies_{mm_cc_yyyy}.xlsx")
+
+    # Write to Excel with formatting
+    with pd.ExcelWriter(anomaly_file_xlsx, engine="openpyxl") as writer:
+        anomalies.to_excel(writer, index=False, sheet_name="Anomalies")
+        ws = writer.sheets["Anomalies"]
+        # Find columns to format
+        percent_cols = [i+1 for i, c in enumerate(anomalies.columns) if 'Pct_' in c or 'Percent' in c]
+        currency_cols = [i+1 for i, c in enumerate(anomalies.columns) if (
+            c == 'Active Month' or c == 'Rolling_Avg' or c == 'Active_vs_Avg' or c == 'MoM_Change' or c.endswith('_Months_ago'))]
+        # Apply formatting (skip header row)
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+            for idx in percent_cols:
+                cell = row[idx-1]
+                cell.number_format = '0.00%'
+            for idx in currency_cols:
+                cell = row[idx-1]
+                cell.number_format = '[$$-409]#,##0.00'
+    print(f"Anomaly report saved to: {anomaly_file_xlsx}")
+
+# ---------------------------
+# 7. Main Execution
 # ---------------------------
 if __name__ == "__main__":
-    # Simulate data
-    df = simulate_billing_data()
+    # Accept file path as argument
+    filepath = sys.argv[1] if len(sys.argv) > 1 else None
+    df, mm_cc_yyyy = load_sample_billing_data(filepath)
     df = clean_data(df)
     df = calculate_rolling_average(df)
     df = calculate_deltas(df)
     df = flag_special_cases(df)
     df = flag_anomalies(df)
-    summary = generate_summary_statistics(df)
-    
-    print("Summary Statistics:")
-    for k, v in summary.items():
-        print(f"{k}: {v}")
-    # Optionally: df.to_csv("anomaly_output.csv", index=False) 
+    output_results(df, mm_cc_yyyy)
+    print("Anomaly detection complete.") 

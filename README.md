@@ -58,7 +58,6 @@ Alexander Wireless/
 
 ## Documentation
 - **[ARCHITECTURE.md](./ARCHITECTURE.md):** Full technical and business process documentation.
-- **[DEVELOPMENTPLAN.md](./DEVELOPMENTPLAN.md):** Step-by-step implementation plan.
 
 ---
 
