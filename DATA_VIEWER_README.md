@@ -1,0 +1,186 @@
+# Data Viewer for Dummy Data Generation
+
+This repository now includes two different ways to view the output of your Python dummy data generation file:
+
+## 🚀 Quick Start
+
+1. **Generate the data first:**
+   ```bash
+   python generate_sample_data.py
+   ```
+
+2. **Choose your viewer:**
+   - **Web-based viewer (recommended):** `streamlit run data_viewer.py`
+   - **Command-line viewer:** `python simple_data_viewer.py`
+
+## 📊 Web-Based Viewer (Streamlit)
+
+The web-based viewer provides an interactive dashboard with multiple views:
+
+### Features:
+- **Overview:** See all available data files and their status
+- **Billing Cycle Data:** Browse through different sheets with detailed statistics
+- **Code Descriptions:** View billing code descriptions and distributions
+- **Charts & Analytics:** Interactive charts and data analysis
+- **Data Export:** Download files and regenerate data
+
+### To run:
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the web viewer
+streamlit run data_viewer.py
+```
+
+The viewer will open in your browser at `http://localhost:8501`
+
+### Navigation:
+- Use the sidebar to switch between different views
+- Each view provides different ways to explore your data
+- Interactive charts allow you to hover and explore data points
+- Download buttons let you export the generated Excel files
+
+## 💻 Command-Line Viewer
+
+For quick data inspection without a web browser:
+
+### Interactive Mode:
+```bash
+python simple_data_viewer.py
+```
+
+### Command Mode:
+```bash
+# Show data overview
+python simple_data_viewer.py overview
+
+# Show billing cycle data
+python simple_data_viewer.py billing
+
+# Show code descriptions
+python simple_data_viewer.py descriptions
+
+# Show analytics
+python simple_data_viewer.py analytics
+
+# Show everything
+python simple_data_viewer.py all
+```
+
+### Features:
+- **Data Overview:** Lists all available files and their status
+- **Billing Data:** Shows detailed data from each Excel sheet
+- **Code Descriptions:** Displays billing code descriptions
+- **Analytics:** Basic statistical analysis of the data
+
+## 📁 Data Structure
+
+The dummy data generation creates:
+
+### Excel Files:
+- `Sample_Billing_Cycle.xlsx` - Main billing data with 4 sheets:
+  - Single Event Charges
+  - Account Corrections  
+  - Subscription Plans
+  - Line Add-ons
+
+### Description Files:
+- `Single_Event_Charges_Descriptions.xlsx`
+- `Account_Corrections_Descriptions.xlsx`
+
+## 🔧 Requirements
+
+Install the required packages:
+```bash
+pip install -r requirements.txt
+```
+
+Required packages:
+- `pandas` - Data manipulation
+- `numpy` - Numerical operations
+- `openpyxl` - Excel file handling
+- `streamlit` - Web interface (for web viewer)
+- `plotly` - Interactive charts (for web viewer)
+
+## 🎯 Usage Examples
+
+### Web Viewer Examples:
+1. **Check data overview:** Navigate to "Overview" in the sidebar
+2. **Explore billing data:** Go to "Billing Cycle Data" and select different sheets
+3. **View charts:** Use "Charts & Analytics" for visual analysis
+4. **Download data:** Use "Data Export" to download Excel files
+
+### Command Line Examples:
+```bash
+# Quick overview of what data is available
+python simple_data_viewer.py overview
+
+# See all billing data in detail
+python simple_data_viewer.py billing
+
+# Get analytics and statistics
+python simple_data_viewer.py analytics
+```
+
+## 🔄 Regenerating Data
+
+### Web Viewer:
+- Go to "Data Export" section
+- Click "🔄 Regenerate Sample Data" button
+
+### Command Line:
+```bash
+python generate_sample_data.py
+```
+
+## 📈 Data Analysis Features
+
+### Web Viewer Analytics:
+- **Distribution charts** by sheet, month, year, and bill cycle
+- **Time series analysis** of monthly data trends
+- **Correlation heatmaps** for numeric columns
+- **Interactive charts** with hover details
+
+### Command Line Analytics:
+- **Record counts** by various dimensions
+- **Statistical summaries** of numeric data
+- **Data distribution** analysis
+- **Monthly averages** for time-series data
+
+## 🛠️ Troubleshooting
+
+### Common Issues:
+
+1. **"Data directory not found"**
+   - Run `python generate_sample_data.py` first
+
+2. **"Streamlit not found"**
+   - Install with: `pip install streamlit plotly`
+
+3. **"Excel file error"**
+   - Make sure `openpyxl` is installed: `pip install openpyxl`
+
+4. **"Port already in use"**
+   - Streamlit will automatically use a different port
+   - Check the terminal output for the correct URL
+
+## 🎨 Customization
+
+### Web Viewer:
+- Modify `data_viewer.py` to add new charts or views
+- Customize the sidebar navigation
+- Add new data export formats
+
+### Command Line Viewer:
+- Edit `simple_data_viewer.py` to add new analysis functions
+- Customize the output formatting
+- Add new command-line options
+
+## 📝 Notes
+
+- Both viewers automatically detect the data structure
+- The web viewer provides more interactive features
+- The command-line viewer is faster for quick data checks
+- Data is read directly from the Excel files generated by your script
+- All viewers handle missing files gracefully with appropriate error messages
