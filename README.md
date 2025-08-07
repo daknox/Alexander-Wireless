@@ -6,10 +6,12 @@ This project automates the extraction, transformation, and anomaly detection of 
 - **Automated data ingestion** from complex Excel files
 - **Feature engineering** for robust anomaly detection
 - **Business-rule-based anomaly flagging**
-- **Output of both anomaly reports and full cycle tables**
+- **SQLite database storage** for all processed data
+- **Anomaly reports for analyst review**
 - **Sample data generation script included**
+- **One-click demo script for streamlined setup and demonstration**
 
-For a detailed breakdown of the project architecture and development plan, see [ARCHITECTURE.md](./ARCHITECTURE.md) and [DEVELOPMENTPLAN.md](./DEVELOPMENTPLAN.md).
+For a detailed breakdown of the project architecture and development plan, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 
@@ -17,42 +19,98 @@ For a detailed breakdown of the project architecture and development plan, see [
 
 ```
 Alexander Wireless/
-  anomaly_detection.py         # Main processing script
-  generate_sample_data.py      # Script to generate sample Excel files
-  requirements.txt             # Python dependencies
-  ARCHITECTURE.md              # Detailed architecture and business logic
-  DEVELOPMENTPLAN.md           # Step-by-step development plan
-  README.md                    # This file
-  /data/                       # Input Excel files (generated)
-  /output/                     # Generated reports and tables
+  billing_anomaly_detection.db    # SQLite database (all data)
+  run_clean_demo.py               # One-click demo script
+  database_setup.py               # Database initialization
+  database_integration.py         # Database operations
+  anomaly_detection_with_db.py    # Main processing with DB integration
+  generate_extended_sample_data.py # Generate 30 cycles of sample data
+  anomaly_detection_next_month.py # Process next month cycles
+  database_queries.py             # Advanced database analysis
+  requirements.txt                # Python dependencies
+  ARCHITECTURE.md                 # Detailed architecture and business logic
+  README.md                       # This file
+  /data/                          # Input and output files
+    /sample_data/                 # Generated sample Excel files
+    /descriptions/                # Code description files
+    /Anomalies/                   # Excel reports for analysts
 ```
 
 ---
 
-## Setup Instructions
+## Quick Start: One-Click Demo
 
-1. **Clone the repository and navigate to the project directory.**
-2. **Install dependencies:**
+1. **Install dependencies:**
    ```bash
-   pip install -r requirements.txt
+   python -m pip install -r requirements.txt
    ```
-3. **Generate sample data (optional, for testing):**
+
+2. **Run the clean demo script:**
    ```bash
-   python generate_sample_data.py
+   python run_clean_demo.py
    ```
-   This will create sample billing cycle and code description files in `/data/`.
-4. **Run the main anomaly detection script:**
-   ```bash
-   python anomaly_detection.py
-   ```
-   Outputs will be saved in `/output/`.
+   This script will:
+   - Set up the SQLite database
+   - Generate 30 cycles of sample data across 3 months
+   - Store all data in the database
+   - Run anomaly detection on 2 cycles (for demo)
+   - Generate Excel reports for analyst review
+
+3. **View results:**
+   - Anomaly reports: `data/Anomalies/`
+   - Database: `billing_anomaly_detection.db`
+   - Sample data: `data/sample_data/`
+
+---
+
+## Database Integration
+- All processed billing data is stored in SQLite database
+- Includes all codes regardless of anomaly thresholds
+- Tracks processing history and configuration
+- Enables historical analysis and trend tracking
+
+---
+
+## Key Features
+
+### Data Processing
+- **30 cycles generated** across 3 sequential months
+- **Random cycle numbers 1-30** in sequential order per month
+- **All data stored in SQLite** for analysis
+- **Anomaly detection on subset** for demo efficiency
+
+### Anomaly Detection
+- **Z-score analysis** for statistical outliers
+- **Percent change thresholds** by bill type
+- **Special case flagging** (new codes, drops to zero)
+- **Excel reports** for analyst review
+
+### Database Features
+- **Complete data storage** (not just anomalies)
+- **Processing history tracking**
+- **Configuration management**
+- **Advanced query capabilities**
 
 ---
 
 ## Usage
-- Place your billing cycle Excel file(s) and code description file(s) in the `/data/` directory.
-- Run the main script to process the data and generate outputs.
-- Review the anomaly report and full cycle table in `/output/`.
+
+### For Analysts
+- Review anomaly reports in `data/Anomalies/`
+- Use database queries for historical analysis
+- Track billing code performance over time
+
+### For Developers
+- Add new bill types or codes
+- Modify anomaly detection thresholds
+- Extend database schema as needed
+
+---
+
+## Troubleshooting
+- **pip not recognized:** Use `python -m pip install -r requirements.txt`
+- **Database errors:** Delete `billing_anomaly_detection.db` and re-run demo
+- **Missing files:** Ensure all dependencies are installed
 
 ---
 
