@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// T-Mobile Billing Anomaly Detection System
+model BillingCycle {
+  id              String   @id @default(cuid())
+  cycleDate       String   @unique // Format: "MM-C-YYYY"
+  cycleNumber     Int      // 1-30 (randomized)
+  year            Int
+  month           Int
+  processingTimestamp DateTime @default(now())
+  totalRecords    Int      @default(0)
+  anomalyCount    Int      @default(0)
+  totalAmount     Decimal  @db.Decimal(15, 2) @default(0)
+  
+  billingData     BillingData[]
+  anomalies       Anomaly[]
+  analystNotes    AnalystNote[]
+
+  @@map("billing_cycles")
+}
+
+model BillingCode {
+  id              String   @id @default(cuid())
+  billingCode     String
+  auditType       String   // "SEC", "ACR", "SUB", "ADD" (4 ladder sheets)
+  description     String?
+  firstSeenDate   DateTime @default(now())
+  
+  billingData     BillingData[]
+  anomalies       Anomaly[]
+
+  @@unique([billingCode, auditType])
+  @@map("billing_codes")
+}
+
+model BillingData {
+  id                    String   @id @default(cuid())
+  cycleId               String
+  codeId                String
+  billingCode           String
+  auditType             String
+  year                  Int
+  month                 Int
+  cycleNumber           Int
+  
+  // Historical amounts (5 months)
+  amount5MonthsAgo      Decimal? @db.Decimal(15, 2)
+  amount4MonthsAgo      Decimal? @db.Decimal(15, 2)
+  amount3MonthsAgo      Decimal? @db.Decimal(15, 2)
+  amount2MonthsAgo      Decimal? @db.Decimal(15, 2)
+  amount1MonthAgo       Decimal? @db.Decimal(15, 2)
+  currentMonthAmount    Decimal  @db.Decimal(15, 2)
+  
+  // Calculated fields (stored in DB)
+  rolling5MonthAvg      Decimal? @db.Decimal(15, 2)
+  momChange             Decimal? @db.Decimal(15, 2) // Month over month change
+  momChangePercent      Decimal? @db.Decimal(10, 4) // Month over month % change
+  avgVsCurrentDiff      Decimal? @db.Decimal(15, 2) // Difference between avg and current
+  avgVsCurrentPercent   Decimal? @db.Decimal(10, 4) // % change between avg and current
+  
+  // Anomaly flags
+  isAnomaly             Boolean  @default(false)
+  anomalyScore          Decimal? @db.Decimal(10, 4)
+  anomalyReason         String?
+  
+  cycle                 BillingCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  code                  BillingCode  @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  anomaly               Anomaly?
+
+  @@map("billing_data")
+}
+
+model Anomaly {
+  id                    String   @id @default(cuid())
+  cycleId               String
+  codeId                String
+  billingDataId         String   @unique
+  billingCode           String
+  auditType             String
+  anomalyType           String   // "threshold_exceeded", "spike", "drop", "zero_drop"
+  severity              String   // "low", "medium", "high", "critical"
+  anomalyScore          Decimal  @db.Decimal(10, 4)
+  threshold             Decimal  @db.Decimal(10, 4)
+  currentValue          Decimal  @db.Decimal(15, 2)
+  expectedValue         Decimal  @db.Decimal(15, 2)
+  percentChange         Decimal  @db.Decimal(10, 4)
+  description           String
+  businessImpact        String?
+  recommendedAction     String?
+  status                String   @default("open") // "open", "investigating", "resolved", "false_positive"
+  isResearched          Boolean  @default(false) // Analyst research flag
+  assignedTo            String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  cycle                 BillingCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  code                  BillingCode  @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  billingData           BillingData @relation(fields: [billingDataId], references: [id], onDelete: Cascade)
+  analystNotes          AnalystNote[]
+
+  @@map("anomalies")
+}
+
+model AnalystNote {
+  id          String   @id @default(cuid())
+  cycleId     String?
+  anomalyId   String?
+  analystName String
+  note        String
+  timestamp   DateTime @default(now())
+  
+  cycle       BillingCycle? @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  anomaly     Anomaly? @relation(fields: [anomalyId], references: [id], onDelete: SetNull)
+
+  @@map("analyst_notes")
+}
